@@ -6,16 +6,6 @@ import (
 	"strings"
 )
 
-type FoundIndexes struct {
-	firstFound   string
-	firstIndex   int
-	first        bool
-	lastFound    string
-	last         bool
-	lastIndex    int
-	parsedOutput int
-}
-
 func main() {
 	buffer, err := os.ReadFile("input.txt")
 	if err != nil {
@@ -24,46 +14,8 @@ func main() {
 
 	inputArray := strings.Split(string(buffer), "\n")
 
-	accumulator := 0
-	for i := range inputArray {
-		accumulator += (findFirstNumber(inputArray[i], false))*10 + (findFirstNumber(reverseString(inputArray[i]), true))
-	}
-	log.Printf("The sum of all numbers found is: %d", accumulator)
-}
+	finalAnswerAccumulator := 0
 
-func deleteEntryFromSlice(slice []string, index int) []string {
-	return append(slice[:index], slice[index+1:]...)
-}
-
-func deepCopySlice(source []string) []string {
-	target := make([]string, len(source))
-	copy(target, source)
-	return target
-}
-
-func findStringInSlice(target string, slice []string) bool {
-	for _, str := range slice {
-		if str == target {
-			return true // Return true if the target string is found
-		}
-	}
-	return false // Return false if the target string is not found
-}
-
-func deepCopyMap(originalMap map[string]int) map[string]int {
-	copyMap := make(map[string]int)
-	for key, value := range originalMap {
-		copyMap[key] = value
-	}
-	return copyMap
-}
-
-func deleteEntryFromMap(originalMap map[string]int, key string) map[string]int {
-	delete(originalMap, key)
-	return originalMap
-}
-
-func findFirstNumber(stringToSearch string, reversed bool) int {
 	numbersMap := map[string]int{
 		"one":   1,
 		"two":   2,
@@ -85,50 +37,10 @@ func findFirstNumber(stringToSearch string, reversed bool) int {
 		"9":     9,
 	}
 
-	numbersMapCopy := deepCopyMap(numbersMap)
-
-	wordsToDelete := []string{}
-	accumulator := ""
-
-	for i := range stringToSearch {
-		for _, char := range stringToSearch[i:] {
-			if reversed {
-				accumulator = string(char) + accumulator
-			} else {
-				accumulator += string(char)
-			}
-			for key := range numbersMapCopy {
-				if reversed {
-					if !strings.HasSuffix(key, accumulator) {
-						wordsToDelete = append(wordsToDelete, key)
-					}
-				} else {
-					if !strings.HasPrefix(key, accumulator) {
-						wordsToDelete = append(wordsToDelete, key)
-					}
-				}
-			}
-
-			for _, word := range wordsToDelete {
-				delete(numbersMapCopy, word)
-			}
-
-			if len(numbersMapCopy) == 0 {
-				accumulator = ""
-				numbersMapCopy = deepCopyMap(numbersMap)
-				wordsToDelete = []string{}
-				break
-			} else if len(numbersMapCopy) == 1 {
-				_, exists := numbersMapCopy[accumulator]
-				if exists {
-					return numbersMapCopy[accumulator]
-				}
-
-			}
-		}
+	for i := range inputArray {
+		finalAnswerAccumulator += (findNumberSubstring(inputArray[i], numbersMap, false))*10 + (findNumberSubstring(reverseString(inputArray[i]), numbersMap, true))
 	}
-
-	return 0
+	log.Printf("The sum of all numbers found is: %d", finalAnswerAccumulator)
 }
 
 func reverseString(input string) string {
@@ -146,4 +58,75 @@ func reverseString(input string) string {
 
 	reversedString := string(runes)
 	return reversedString
+}
+
+func deepCopyMap(originalMap map[string]int) map[string]int {
+	copyMap := make(map[string]int)
+	for key, value := range originalMap {
+		copyMap[key] = value
+	}
+	return copyMap
+}
+
+func deleteEntryFromMap(originalMap map[string]int, key string) map[string]int {
+	delete(originalMap, key)
+	return originalMap
+}
+
+func resetAuxSearchValues(
+	numbersMapCopy *map[string]int,
+	wordsToDelete *[]string,
+	accumulator *string,
+	defaultSubStringSet map[string]int,
+) {
+	*numbersMapCopy = deepCopyMap(defaultSubStringSet)
+
+	*wordsToDelete = []string{}
+
+	*accumulator = ""
+}
+
+func findNumberSubstring(
+	stringToSearch string,
+	subStringSet map[string]int,
+	findReversed bool,
+) int {
+	numbersMapCopy := deepCopyMap(subStringSet)
+	wordsToDelete := []string{}
+	accumulator := ""
+
+	for i := range stringToSearch {
+		resetAuxSearchValues(&numbersMapCopy, &wordsToDelete, &accumulator, subStringSet)
+		for _, char := range stringToSearch[i:] {
+			if findReversed {
+				accumulator = string(char) + accumulator
+			} else {
+				accumulator += string(char)
+			}
+
+			for key := range numbersMapCopy {
+				if (!findReversed && !strings.HasPrefix(key, accumulator)) ||
+					(findReversed && !strings.HasSuffix(key, accumulator)) {
+					wordsToDelete = append(wordsToDelete, key)
+				}
+			}
+
+			for _, word := range wordsToDelete {
+				delete(numbersMapCopy, word)
+			}
+
+			if len(numbersMapCopy) == 0 {
+				resetAuxSearchValues(&numbersMapCopy, &wordsToDelete, &accumulator, subStringSet)
+				break
+			} else if len(numbersMapCopy) == 1 {
+				_, exists := numbersMapCopy[accumulator]
+				if exists {
+					return numbersMapCopy[accumulator]
+				}
+
+			}
+		}
+	}
+
+	return 0
 }
